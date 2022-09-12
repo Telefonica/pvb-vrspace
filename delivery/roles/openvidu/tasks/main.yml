@@ -1,0 +1,6 @@
+---
+- name: include task docker_install.yml
+  import_tasks: docker_install.yml
+
+- name: include task openvidu_install.yml
+  import_tasks: openvidu_install.yml

@@ -1,0 +1,76 @@
+---
+- name: Create tar
+  hosts: localhost
+  vars_files:
+    - ./vars/infra.yml
+  gather_facts: no
+  tasks:
+    - name: Create tar archive from project
+      archive:
+        path: ../*
+        dest: "./{{ project_name }}.tgz"
+        exclude_path:
+          - ../delivery
+          - ../.git
+
+- name: Create infra
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ./vars/infra.yml
+  roles:
+    - { role: infra }
+
+- name: "Refresh inventory"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Refresh inventory to ensure new instances exist in inventory
+      meta: refresh_inventory
+
+- name: Set facts
+  hosts: localhost
+  tasks:
+    - name: Get OpenVidu version
+      shell: grep -A 1 openvidu-java-client ../server/pom.xml | sed -nr 's|.*<version>(.*)</version>.*|\1|p'
+      register: openvidu_version_stdout
+    - name: Set openvidu_version fact
+      set_fact:
+        openvidu_version: "{{ openvidu_version_stdout.stdout }}"
+
+- name: Add new VM to known_hosts
+  hosts: service_pvbvrspace
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Check SSH known_hosts for {{ hostvars[inventory_hostname]['ansible_host'] }}
+      local_action: shell ssh-keygen -l -F {{ hostvars[inventory_hostname]['ansible_host'] }}
+      register: checkForKnownHostsEntry
+      failed_when: false
+      changed_when: false
+      ignore_errors: yes
+    - name: Add {{ hostvars[inventory_hostname]['ansible_host'] }} to SSH known hosts automatically
+      when: checkForKnownHostsEntry.rc == 1
+      changed_when: checkForKnownHostsEntry.rc == 1
+      local_action: 
+          module: shell
+          args: ssh-keyscan -H "{{ hostvars[inventory_hostname]['ansible_host'] }}" >> $HOME/.ssh/known_hosts
+
+- name: Set SSH username to ansible
+  hosts: localhost
+  vars_files:
+    - ./vars/infra.yml
+  tasks:
+    - name: Set ssh user
+      set_fact:
+        ansible_ssh_user: "{{ vm_user }}"
+
+- name: Install OpenVidu
+  hosts: service_pvbvrspace
+  remote_user: "{{ vm_user }}"
+  vars_files:
+    - ./vars/infra.yml
+    - ./vars/ubuntu_vm.yml
+  roles:
+    - openvidu
+    - vrspace

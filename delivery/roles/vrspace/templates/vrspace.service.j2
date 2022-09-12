@@ -1,0 +1,11 @@
+[Unit]
+Description={{ vrspace_service }} service
+
+[Service]
+ExecStart=java -jar target/server-{{ vrspace_version }}.jar
+WorkingDirectory={{ vm_user_home }}/server
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+Alias={{ vrspace_service }}.service

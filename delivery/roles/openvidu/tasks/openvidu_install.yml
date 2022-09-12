@@ -1,0 +1,34 @@
+---
+- name: Download OpenVidu
+  shell: 
+    cmd: "curl https://s3-eu-west-1.amazonaws.com/aws.openvidu.io/install_openvidu_{{ hostvars['localhost']['openvidu_version'] }}.sh | bash"
+    chdir: /opt
+  become: yes
+
+- name: Remove OpenVidu default call application
+  file:
+    path: "{{ openvidu_dir }}/docker-compose.override.yml"
+    state: absent
+  become: yes
+
+- name: "Replace DOMAIN_OR_PUBLIC_IP in {{ openvidu_dir }}/.env"
+  command: "sed -i 's/DOMAIN_OR_PUBLIC_IP=.*/DOMAIN_OR_PUBLIC_IP={{ openvidu_domain_or_public_ip }}/g' {{ openvidu_dir }}/.env"
+  become: yes
+
+- name: "Replace OPENVIDU_SECRET in {{ openvidu_dir }}/.env"
+  command: "sed -i 's/OPENVIDU_SECRET=.*/OPENVIDU_SECRET={{ openvidu_secret }}/g' {{ openvidu_dir }}/.env"
+  become: yes
+
+- name: "Replace CERTIFICATE_TYPE in {{ openvidu_dir }}/.env"
+  command: "sed -i 's/CERTIFICATE_TYPE=.*/CERTIFICATE_TYPE={{ openvidu_certificate_type }}/g' {{ openvidu_dir }}/.env"
+  become: yes
+
+- name: "Replace LETSENCRYPT_EMAIL in {{ openvidu_dir }}/.env"
+  command: "sed -i 's/LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL={{ openvidu_letsencrypt_email }}/g' {{ openvidu_dir }}/.env"
+  become: yes
+
+- name: Restart OpenVidu
+  shell: 
+    cmd: docker-compose down && docker-compose up -d
+    chdir: "{{ openvidu_dir }}"
+  become: yes
