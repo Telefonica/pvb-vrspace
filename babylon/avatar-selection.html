@@ -50,29 +50,15 @@ var scene;
 var anonymousAllowed = true;
 
 import("./avatar-selection.js").then( (module) =>{
-  
-  var world = module.WORLD;
-  var nameInput = document.getElementById('nickname');
-  nameInput.addEventListener('input', (e)=>{
-    world.setMyName(e.target.value);
-  });
-  
-  var loginButton = document.getElementById('loginButton');
-  loginButton.addEventListener('click', (e)=>{
-    world.oauth2login();
-  });
+  var world = module.WORLD; 
 
   var checkValidName = (name) => {
     console.log( 'checking name ', name );
     if ( name ) {
       world.setLoginName(name).then( validName => {
-        var nameLabel = document.getElementById('namelabel');
         console.log("Valid name: "+validName);
         if ( validName ) {
-          nameLabel.innerHTML="Name:"
           canvas.focus();
-        } else {
-          nameLabel.innerHTML="INVALID NAME, try another:"
         }
         world.portalsEnabled(validName);
       });
@@ -80,11 +66,6 @@ import("./avatar-selection.js").then( (module) =>{
       world.portalsEnabled(anonymousAllowed);
     }
   }
-
-  nameInput.addEventListener('change', (e)=>{
-    checkValidName(e.target.value);
-    //loginButton.disabled=false;
-  });
 
   document.getElementById('chatBox').style.display = 'none';
   document.getElementById('chatInput').addEventListener('change', (e)=>{
@@ -99,7 +80,7 @@ import("./avatar-selection.js").then( (module) =>{
     // testing various REST calls here
     world.getAuthenticated().then( isAuthenticated => {
       if ( isAuthenticated ) {
-        document.getElementById('loginForm').style.display = 'none';
+        // document.getElementById('loginForm').style.display = 'none';
         world.getUserName().then( name => world.setMyName(name));
         world.getUserObject().then( me => {
           console.log("user mesh "+me.mesh, me);
@@ -117,16 +98,13 @@ import("./avatar-selection.js").then( (module) =>{
     
     world.showPortals();
     world.beforeEnter = () => {
-      document.getElementById('loginForm').style.display = 'none';
     }
     world.afterEnter = () => {
       document.getElementById('chatBox').style.display = 'block';
     }
     world.afterExit = () => {
       console.log('Exit:'+world.worldManager.error);
-      document.getElementById('loginForm').style.display = 'block';
       document.getElementById('chatBox').style.display = 'none';
-      //setTimeout(() => document.location.reload(), 5000);
     }
   });
 
@@ -134,6 +112,7 @@ import("./avatar-selection.js").then( (module) =>{
   document.getElementById('renderCanvas').ondragover = (e) => {
     return false;
   }
+
   document.getElementById('renderCanvas').ondrop = (e) => {
     e.preventDefault();
     for ( var i = 0; i < e.dataTransfer.items.length; i++ ) {
@@ -145,10 +124,6 @@ import("./avatar-selection.js").then( (module) =>{
 	          world.write(s);
     			});
     		}
-        // text/html ignored, text/urilist is the same as plain text
-    	//} else {
-    		// file upload unsafe
-    		//console.log('Unsupported kind: '+item.kind);
     	}
     };
   }
@@ -171,12 +146,6 @@ function debugOnOff() {
 }
 
 </script>
-
-<div id="loginForm" style="position:absolute;bottom:50px;right:45%;">
-  <label id="namelabel" for="nickname">Name:</label>
-  <input id="nickname" type="text">
-  <button id="loginButton">Login</button>
-</div>
 
 <div id="chatBox" style="position:absolute;bottom:50px;left:15%">
   <label for="chatInput">Chat:</label>

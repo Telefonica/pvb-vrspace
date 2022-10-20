@@ -43,6 +43,11 @@ export class AvatarSelection extends World {
     this.trackTime = Date.now();
     this.trackDelay = 1000/this.fps;
   }
+
+  getAccessToken() {
+    return localStorage.getItem('accessToken');
+  }
+
   async createSkyBox() {
     if ( this.backgroundPanorama ) {
       var skybox= new BABYLON.PhotoDome("skyDome", 
@@ -365,6 +370,25 @@ export class AvatarSelection extends World {
     return this.userName;
   }
 
+  async login() {
+    try {
+      const response = await fetch("/oauth2/login", {
+        method: 'GET',
+        cache: 'no-cache',
+        headers: {
+          "Authorization": "Bearer " + this.getAccessToken(),
+          "Accept": "application/json'"
+        },
+        referrerPolicy: 'no-referrer',
+        body: null
+      });
+      
+      return response?.ok || response?.status === 302;
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   // TODO: provide API calls lib
   async getJson(url){
     let data = await this.getText(url);
@@ -413,10 +437,14 @@ export class AvatarSelection extends World {
     return userObject.Client;
   }
   
-  async getAuthenticated() {
-    var isAuthenticated = await this.getText("/user/authenticated");
-    console.log("User is authenticated: "+isAuthenticated);
-    return 'true' === isAuthenticated;
+  async getAuthenticated() {        
+    let authenticated = false;
+
+    if (await this.login()) {
+      authenticated = await this.getText("/user/authenticated") === "true";
+    }
+
+    return authenticated;
   }
   
   animationButtons(avatar) {

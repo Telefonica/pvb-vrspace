@@ -3,18 +3,21 @@ package org.vrspace.server.api;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
+import org.vrspace.server.api.model.PvbUserResponse;
 import org.vrspace.server.core.ClientFactory;
 import org.vrspace.server.core.VRObjectRepository;
 import org.vrspace.server.obj.Client;
@@ -30,15 +33,47 @@ public class Oauth2Controller {
   @Autowired
   ClientFactory clientFactory;
 
-  @GetMapping("/login")
-  public ResponseEntity<String> login(String name, HttpSession session, HttpServletRequest request) {
-    String referrer = request.getHeader(HttpHeaders.REFERER);
-    log.info("Referer: " + referrer);
+  private static final String TEST_TOKEN_URL = "http://localhost:8000/api/v1/login/test-token";
 
-    // authentication bypass
-    if (ObjectUtils.isEmpty(name)) {
-      throw new ApiException("Argument required: name");
+  private String getPvbUsername(String accessToken) {
+    String username = null;
+
+    try {
+      if (accessToken != null && !accessToken.isEmpty()) {
+        RestTemplate restTemplate = new RestTemplate();
+      
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+  
+        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(new LinkedMultiValueMap<>(), headers);
+        ResponseEntity<PvbUserResponse> response = restTemplate.postForEntity(TEST_TOKEN_URL, requestEntity, PvbUserResponse.class);
+
+        PvbUserResponse body = response.getBody();
+        
+        if (body != null) {
+          username = body.getFullName() != null ? body.getFullName() : body.getEmail();
+        }
+      }
+    } catch (Exception e) {
+      log.error("getPvbUsername", e);
     }
+
+    return username;
+  }
+
+  @GetMapping("/login")
+  public ResponseEntity<String> login(@RequestHeader String authorization, HttpSession session, HttpServletRequest request) {
+    String accessToken = null;
+    if (authorization != null && !authorization.isBlank() && authorization.startsWith("Bearer ")) {
+			accessToken = authorization.substring(7, authorization.length());
+    }
+    
+    String name = getPvbUsername(accessToken);
+
+    if (ObjectUtils.isEmpty(name)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+    }
+    
     log.debug("login as:" + name);
     String identity = identity(name);
 
@@ -55,21 +90,15 @@ public class Oauth2Controller {
       client.setIdentity(identity);
       client = db.save(client);
     }
-    // CHECKME do we need to return anything?
+
     session.setAttribute(clientFactory.clientAttribute(), name);
-    return ResponseEntity.status(HttpStatus.FOUND).header("Location", referrer).body("Redirecting to " + referrer);
+
+    String referer = request.getHeader(HttpHeaders.REFERER);
+    return ResponseEntity.status(HttpStatus.FOUND).header("Location", referer).body("Redirecting to " + referer);
   }
 
-  // CHECKME some kind of universal identity
   private String identity(String name) {
     return "local:" + name;
   }
 
-  @GetMapping("/callback")
-  public void callback(String code, String state, HttpServletRequest request) {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-    OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
-    log.debug("oauth callback: code=" + code + " " + oauthToken);
-  }
 }
