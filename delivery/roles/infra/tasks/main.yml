@@ -1,0 +1,103 @@
+---
+- name: "Create Resource Group {{ resource_group }}"
+  azure_rm_resourcegroup:
+    auth_source: auto
+    name: "{{ resource_group }}"
+    location: "{{ infra_location }}"
+
+- name: "Create {{ virtual_network }} virtual network"
+  azure_rm_virtualnetwork:
+    resource_group: "{{ resource_group }}"
+    name: "{{ virtual_network }}"
+    address_prefixes: "{{ vnet_block }}"
+
+- name: "Create {{ vrspace_nsg }} NSG"
+  azure_rm_securitygroup:
+    resource_group: "{{ resource_group }}"
+    name: "{{ vrspace_nsg }}"
+    rules:
+      - name: SSH
+        protocol: Tcp
+        destination_port_range: 22
+        access: Allow
+        priority: 1000
+        direction: Inbound
+      - name: HTTP
+        protocol: Tcp
+        destination_port_range: 80
+        access: Allow
+        priority: 1001
+        direction: Inbound
+      - name: SSL
+        protocol: Tcp
+        destination_port_range: 443
+        access: Allow
+        priority: 1002
+        direction: Inbound
+      - name: TURN
+        protocol: "*"
+        destination_port_range: 3478
+        access: Allow
+        priority: 1003
+        direction: Inbound
+      - name: Kurento
+        protocol: "*"
+        destination_port_range: 40000-57000
+        access: Allow
+        priority: 1004
+        direction: Inbound
+      - name: TURN_Relay
+        protocol: "*"
+        destination_port_range: 57001-65535
+        access: Allow
+        priority: 1005
+        direction: Inbound
+
+- name: "Add {{ vrspace_subnet }} subnet"
+  azure_rm_subnet:
+    resource_group: "{{ resource_group }}"
+    name: "{{ vrspace_subnet }}"
+    address_prefix: "{{ vrspace_subnet_block }}"
+    virtual_network: "{{ virtual_network }}"
+    security_group: "{{ vrspace_nsg }}"
+
+- name: "Create {{ vrspace_ip }} IP address"
+  azure_rm_publicipaddress:
+   resource_group: "{{ resource_group }}"
+   allocation_method: Static
+   name: "{{ vrspace_ip }}"
+
+- name: "Create {{ vrspace_nic }} NIC"
+  azure_rm_networkinterface:
+    name: "{{ vrspace_nic }}"
+    resource_group: "{{ resource_group }}"
+    virtual_network: "{{ virtual_network }}"
+    subnet: "{{ vrspace_subnet }}"
+    security_group: "{{ vrspace_nsg }}"
+    ip_configurations:
+      - name: "{{ default_ipconfig }}"
+        public_ip_address_name: "{{ vrspace_ip }}"
+        primary: yes
+
+- name: "Create {{ vrspace_vm }} Virtual Machine"
+  azure_rm_virtualmachine:     
+    resource_group: "{{ resource_group }}"
+    name: "{{ vrspace_vm }}"
+    os_disk_name: "{{ vrspace_os_disk }}"
+    managed_disk_type: Premium_LRS
+    os_disk_caching: ReadWrite
+    os_disk_size_gb: 30
+    image:
+      offer: "{{ vm_image_offer }}"
+      publisher: "{{ vm_image_publisher }}"
+      sku: "{{ vm_image_sku }}"
+      version: "{{ vm_image_version }}"
+    network_interfaces: "{{ vrspace_nic }}"
+    ssh_password_enabled: false
+    vm_size: "{{ vm_image_size }}"
+    admin_username: "{{ vm_user }}"
+    ssh_public_keys:
+     - path: "/home/{{ vm_user }}/.ssh/authorized_keys"
+       key_data: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+    tags:
+      service: "{{ project_name }}"

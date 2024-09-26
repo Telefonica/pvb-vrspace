@@ -1,0 +1,22 @@
+---
+project_name: pvbvrspace
+infra_location: westeurope
+resource_group: "{{ project_name }}"
+virtual_network: "{{ project_name }}-vnet"
+vnet_block: 192.168.0.0/24
+default_ipconfig: "ipconfig1"
+vm_image_size: Standard_DS1_v2
+vm_image_offer: "0001-com-ubuntu-server-focal"
+vm_image_publisher: "Canonical"
+vm_image_sku: "20_04-lts"
+vm_image_version: latest
+vm_user: "{{ project_name }}"
+vm_user_home: "/home/{{ vm_user }}"
+
+vrspace_nsg: "{{ project_name }}-nsg"
+vrspace_nic: "{{ project_name }}-nic"
+vrspace_subnet: "{{ project_name }}-subnet"
+vrspace_subnet_block: "192.168.0.0/28"
+vrspace_os_disk: "{{ project_name }}-os-disk"
+vrspace_vm: "{{ project_name }}-vm"
+vrspace_ip: "{{ project_name }}-ip"

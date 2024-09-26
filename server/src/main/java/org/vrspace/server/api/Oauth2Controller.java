@@ -35,13 +35,12 @@ public class Oauth2Controller {
     String referrer = request.getHeader(HttpHeaders.REFERER);
     log.info("Referer: " + referrer);
 
-    // at this point client is already authenticated
+    // authentication bypass
     if (ObjectUtils.isEmpty(name)) {
       throw new ApiException("Argument required: name");
     }
-    log.debug("oauth login as:" + name);
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String identity = identity((OAuth2AuthenticationToken) authentication);
+    log.debug("login as:" + name);
+    String identity = identity(name);
 
     Client client = db.getClientByName(name);
     if (client != null) {
@@ -62,12 +61,8 @@ public class Oauth2Controller {
   }
 
   // CHECKME some kind of universal identity
-  private String identity(OAuth2AuthenticationToken token) {
-    String authority = token.getAuthorizedClientRegistrationId();
-    String realName = token.getPrincipal().getAttribute("name");
-    // hash the name - we don't want any private data stored anywhere
-    String hashedName = DigestUtils.sha256Hex(realName);
-    return authority + ":" + hashedName;
+  private String identity(String name) {
+    return "local:" + name;
   }
 
   @GetMapping("/callback")

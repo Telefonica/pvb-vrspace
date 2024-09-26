@@ -221,24 +221,22 @@ public class WorldManager {
     // principal may be OAuth2AuthenticationToken, in that case getName() returns
     // token value, getAuthorizedClientRegistrationId() return the authority
     // (github, facebook...)
-    Client client = null;
-    if (session.getPrincipal() != null) {
-      client = clientFactory.findClient(principal, db, headers, attributes);
-      if (client == null) {
-        throw new SecurityException("Unauthorized client " + session.getPrincipal().getName());
-      }
-    } else if (config.isGuestAllowed()) {
-      client = clientFactory.createGuestClient(headers, attributes);
-      if (client == null) {
-        throw new SecurityException("Guest disallowed");
-      }
-      client.setPosition(new Point());
-      client.setGuest(true);
-      client = db.save(client);
-    } else {
-      client = clientFactory.handleUnknownClient(headers, attributes);
-      if (client == null) {
-        throw new SecurityException("Unauthorized");
+    Client client = clientFactory.findClient(principal, db, headers, attributes);
+
+    if (client == null) {
+      if (config.isGuestAllowed()) {
+        client = clientFactory.createGuestClient(headers, attributes);
+        if (client == null) {
+          throw new SecurityException("Guest disallowed");
+        }
+        client.setPosition(new Point());
+        client.setGuest(true);
+        client = db.save(client);
+      } else {
+        client = clientFactory.handleUnknownClient(headers, attributes);
+        if (client == null) {
+          throw new SecurityException("Unauthorized");
+        }
       }
     }
     client.setSession(session);

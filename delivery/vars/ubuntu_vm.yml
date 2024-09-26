@@ -1,0 +1,10 @@
+ansible_python_interpreter: /usr/bin/python3
+vrspace_service: "{{ project_name }}"
+vrspace_service_path: "/etc/systemd/system/{{ project_name }}.service"
+vrspace_port: 5442
+openvidu_public_url_escaped: "https:\\/\\/pvb.freeddns.org\\/"
+openvidu_domain_or_public_ip: pvb.freeddns.org
+openvidu_secret: 123abc
+openvidu_certificate_type: letsencrypt
+openvidu_letsencrypt_email: terodelarosa@telefonica.com
+openvidu_dir: /opt/openvidu

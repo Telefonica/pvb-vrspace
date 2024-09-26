@@ -1,0 +1,58 @@
+---
+- name: Copy archived project files
+  ansible.builtin.copy:
+    src: "../../{{ project_name }}.tgz"
+    dest: "{{ vm_user_home }}/{{ project_name }}.tgz"
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user }}"
+    mode: '0644'
+
+- name: "Extract {{ project_name }}.tgz into /home/{{ vm_user }}/"
+  ansible.builtin.unarchive:
+    src: "{{ vm_user_home }}/{{ project_name }}.tgz"
+    dest: "{{ vm_user_home }}/"
+    remote_src: yes
+
+- name: Replace openvidu.publicurl
+  command: "sed -i 's/openvidu.publicurl=.*/openvidu.publicurl={{ openvidu_public_url_escaped }}/g' {{ vm_user_home }}/server/src/main/resources/application.properties"
+
+- name: Replace openvidu.secret
+  command: "sed -i 's/openvidu.secret=.*/openvidu.secret={{ openvidu_secret }}/g' {{ vm_user_home }}/server/src/main/resources/application.properties"
+
+- name: Replace server.port
+  command: "sed -i 's/server.port=.*/server.port={{ vrspace_port }}/g' {{ vm_user_home }}/server/src/main/resources/application.properties"
+
+- name: Install Maven
+  apt:
+    pkg:
+      - maven
+    state: latest
+    update_cache: true
+  become: true
+
+- name: Maven compile project
+  shell: "mvn clean install -DskipTests"
+
+- name: Get VRSpace version
+  shell: grep -A 2 org.vrspace server/pom.xml | sed -nr 's|.*<version>(.*)</version>.*|\1|p'
+  register: vrspace_version_stdout
+
+- set_fact:
+    vrspace_version: "{{ vrspace_version_stdout.stdout }}"
+
+- name: "Create {{ vrspace_service }} service"
+  template:
+    src: vrspace.service.j2
+    dest: "{{ vrspace_service_path }}"
+    owner: root
+    group: root
+    mode: 0644
+    force: true
+  become: yes
+
+- name: "Reload daemon and restart {{ vrspace_service }} service"
+  ansible.builtin.systemd:
+    name: "{{ vrspace_service }}"
+    state: restarted
+    daemon_reload: yes
+  become: yes
